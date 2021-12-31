@@ -1,26 +1,39 @@
-const jwt = require('jsonwebtoken')
+/* eslint-disable no-console */
+const jwt = require('jsonwebtoken');
 
-const verifyToken = (req, res, next) => {
-    const bearerHeader = req.headers.authorization;
-    if (bearerHeader) {
-        const bearer = bearerHeader.split(' ');
-        const bearerToken = bearer[1]
-        if (bearerToken) {
-            return jwt.verify(bearerToken, process.env.JWT_SECRET, function (err, decoded) {
-                if (err) {
-                    return res.json({
-                        success: false,
-                        message: "Failed to authenticate token.",
-                    });
-                }
-                req.token = bearerToken;
-                return next();
-            })
-        }
-
-    } else { return res.sendStatus(403) }
-
+function verifyToken(req, res) {
+  const bearer = req.headers?.authorization?.split(' ');
+  const bearerToken = bearer[1];
+  if (bearerToken) {
+    return jwt.verify(bearerToken, process.env.JWT_SECRET, (err, decodedToken) => {
+      if (err) {
+        return res.sendStatus(403);
+      }
+      return decodedToken;
+    });
+  }
 }
 
-module.exports = verifyToken
+const userVerify = (req, res, next) => {
+  const payload = verifyToken(req, res);
+  if (payload.role === 'User') {
+    return next();
+  }
+  return res.sendStatus(403);
+};
 
+async function adminVerify(req, res, next) {
+  const payload = verifyToken(req, res);
+  if (payload.role === 'Admin') {
+    return next();
+  }
+  return res.json({ status: false, message: 'Only Admin can add the products' });
+}
+async function roleVerify(req, res, next) {
+  const payload = verifyToken(req, res);
+  if (payload) { return next(); }
+}
+
+module.exports = {
+  verifyToken, userVerify, adminVerify, roleVerify,
+};
